@@ -1,0 +1,213 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>상세페이지 수정 비교 PDF</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<style>
+:root{--bg:#f4f5f7;--card:#fff;--ink:#1d2330;--sub:#6b7385;--line:#dde1e8;--old:#6b7385;--new:#e8452c;--acc:#2456e8}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:"Apple SD Gothic Neo","Malgun Gothic",system-ui,sans-serif}
+header{background:#fff;border-bottom:1px solid var(--line);padding:14px 24px;display:flex;flex-wrap:wrap;gap:14px;align-items:flex-end;position:sticky;top:0;z-index:10}
+header h1{font-size:17px;margin:0 12px 6px 0;width:100%}
+label.f{display:flex;flex-direction:column;font-size:12px;color:var(--sub);gap:4px}
+input[type=text]{height:36px;padding:0 10px;border:1px solid var(--line);border-radius:8px;font-size:14px;font-family:inherit;min-width:120px}
+input.name{width:280px}
+input.lab{width:90px}
+button{height:36px;padding:0 14px;border-radius:8px;border:1px solid var(--line);background:#fff;font-size:13px;cursor:pointer;font-family:inherit}
+button:hover{background:#f0f2f6}
+button.primary{background:var(--acc);border-color:var(--acc);color:#fff;font-weight:600}
+button.primary:hover{background:#1c45c0}
+button:disabled{opacity:.5;cursor:default}
+.sp{flex:1}
+#status{font-size:12px;color:var(--sub);align-self:center}
+main{display:grid;grid-template-columns:1fr 1fr;gap:20px;padding:20px 24px;max-width:1300px;margin:0 auto}
+.col h2{font-size:15px;margin:0 0 8px;display:flex;align-items:center;gap:8px}
+.col h2 .badge{font-size:12px;color:#fff;border-radius:99px;padding:2px 10px}
+.col.old .badge{background:var(--old)} .col.new .badge{background:var(--new)}
+.col h2 small{color:var(--sub);font-weight:400}
+.col h2 .tools{margin-left:auto;display:flex;gap:6px}
+.col h2 .tools button{height:28px;padding:0 10px;font-size:12px}
+.drop{border:2px dashed var(--line);border-radius:12px;background:#fff;padding:16px;text-align:center;color:var(--sub);font-size:13px;cursor:pointer;margin-bottom:10px}
+.drop.over{border-color:var(--acc);background:#eef2ff}
+.list{display:flex;flex-direction:column;gap:8px}
+.item{display:flex;gap:10px;align-items:center;background:var(--card);border:1px solid var(--line);border-radius:10px;padding:8px;cursor:grab}
+.item.dragging{opacity:.4}
+.item.target{border-color:var(--acc);box-shadow:0 -3px 0 var(--acc)}
+.item .no{width:28px;height:28px;border-radius:50%;background:var(--ink);color:#fff;font-size:13px;font-weight:700;display:flex;align-items:center;justify-content:center;flex:none}
+.item img{width:84px;height:84px;object-fit:cover;object-position:top;border-radius:6px;background:#eee;flex:none;border:1px solid var(--line)}
+.item .meta{flex:1;min-width:0;font-size:12px;color:var(--sub)}
+.item .meta b{display:block;color:var(--ink);font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-bottom:2px}
+.item .btns{display:flex;flex-direction:column;gap:4px}
+.item .btns button{height:24px;padding:0 8px;font-size:12px}
+.empty{height:100px;border:1px dashed var(--line);border-radius:10px;display:flex;align-items:center;justify-content:center;color:#a5acba;font-size:12px}
+.hint{max-width:1300px;margin:0 auto;padding:0 24px 40px;color:var(--sub);font-size:12px;line-height:1.7}
+@media(max-width:760px){main{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<header>
+  <h1>상세페이지 수정 비교 PDF 만들기</h1>
+  <label class="f">파일명 (.pdf 자동)<input class="name" id="fname" type="text" value="제품명_상세수정"></label>
+  <label class="f">왼쪽 문구<input class="lab" id="labL" type="text" value="기존"></label>
+  <label class="f">오른쪽 문구<input class="lab" id="labR" type="text" value="수정"></label>
+  <span class="sp"></span>
+  <span id="status"></span>
+  <button id="clear">전체 비우기</button>
+  <button class="primary" id="make">PDF 만들기</button>
+</header>
+
+<main>
+  <section class="col old" data-side="L">
+    <h2><span class="badge">기존</span><small id="cntL">0장</small>
+      <span class="tools"><button data-sort="L">파일명순 정렬</button><button data-rev="L">순서 뒤집기</button></span></h2>
+    <div class="drop" data-drop="L">클릭하거나 이미지를 여기로 드래그 (여러 장 가능)</div>
+    <input type="file" accept="image/*" multiple hidden id="fileL">
+    <div class="list" id="listL"></div>
+  </section>
+  <section class="col new" data-side="R">
+    <h2><span class="badge">수정</span><small id="cntR">0장</small>
+      <span class="tools"><button data-sort="R">파일명순 정렬</button><button data-rev="R">순서 뒤집기</button></span></h2>
+    <div class="drop" data-drop="R">클릭하거나 이미지를 여기로 드래그 (여러 장 가능)</div>
+    <input type="file" accept="image/*" multiple hidden id="fileR">
+    <div class="list" id="listR"></div>
+  </section>
+</main>
+<div class="hint">
+  · 각 칸의 카드를 드래그하거나 ▲▼ 버튼으로 순서를 바꾸세요. 같은 번호끼리 한 페이지에 나란히 들어갑니다 (실제 파일명과 무관).<br>
+  · 한쪽 장수가 더 많으면 부족한 쪽은 빈 칸으로 남습니다. 페이지 크기는 이미지 길이에 맞춰 자동으로 늘어나 잘리지 않습니다.<br>
+  · 모든 처리는 브라우저 안에서만 이루어지며 이미지가 서버로 전송되지 않습니다.
+</div>
+
+<script>
+const S={L:[],R:[]};
+const $=s=>document.querySelector(s);
+let uid=0,dragInfo=null;
+const natural=(a,b)=>a.name.localeCompare(b.name,'ko',{numeric:true});
+
+function addFiles(side,files){
+  [...files].filter(f=>f.type.startsWith('image/')).sort(natural).forEach(f=>{
+    S[side].push({id:++uid,name:f.name,file:f,url:URL.createObjectURL(f)});
+  });
+  render();
+}
+function render(){
+  for(const side of ['L','R']){
+    const list=$('#list'+side);list.innerHTML='';
+    S[side].forEach((it,i)=>{
+      const el=document.createElement('div');el.className='item';el.draggable=true;el.dataset.id=it.id;
+      el.innerHTML=`<span class="no">${i+1}</span><img src="${it.url}" draggable="false"><div class="meta"><b></b><span class="dim">…</span></div>
+      <div class="btns"><button data-a="up">▲</button><button data-a="dn">▼</button><button data-a="rm">✕</button></div>`;
+      el.querySelector('b').textContent=it.name;
+      const img=el.querySelector('img');
+      const setDim=()=>{el.querySelector('.dim').textContent=img.naturalWidth+' × '+img.naturalHeight+' px'};
+      img.complete&&img.naturalWidth?setDim():img.onload=setDim;
+      el.addEventListener('dragstart',e=>{dragInfo={side,id:it.id};el.classList.add('dragging');e.dataTransfer.effectAllowed='move';e.dataTransfer.setData('text/plain','x')});
+      el.addEventListener('dragend',()=>{dragInfo=null;document.querySelectorAll('.item').forEach(x=>x.classList.remove('dragging','target'))});
+      el.addEventListener('dragover',e=>{if(dragInfo&&dragInfo.side===side){e.preventDefault();el.classList.add('target')}});
+      el.addEventListener('dragleave',()=>el.classList.remove('target'));
+      el.addEventListener('drop',e=>{
+        if(!dragInfo||dragInfo.side!==side)return;
+        e.preventDefault();e.stopPropagation();
+        const arr=S[side];const from=arr.findIndex(x=>x.id===dragInfo.id);
+        let to=arr.findIndex(x=>x.id===it.id);
+        const [m]=arr.splice(from,1);arr.splice(to,0,m);render();
+      });
+      el.querySelector('.btns').onclick=e=>{
+        const a=e.target.dataset.a;if(!a)return;const arr=S[side];
+        if(a==='rm'){URL.revokeObjectURL(it.url);arr.splice(i,1)}
+        else{const j=a==='up'?i-1:i+1;if(j<0||j>=arr.length)return;[arr[i],arr[j]]=[arr[j],arr[i]]}
+        render();
+      };
+      list.appendChild(el);
+    });
+    $('#cnt'+side).textContent=S[side].length+'장';
+  }
+  const a=S.L.length,b=S.R.length;
+  $('#status').textContent=(a||b)?(a===b?`${a}페이지 생성 예정`:`${Math.max(a,b)}페이지 생성 예정 (왼쪽 ${a} / 오른쪽 ${b} — 장수가 달라요)`):'';
+}
+for(const side of ['L','R']){
+  const drop=document.querySelector(`[data-drop=${side}]`),inp=$('#file'+side);
+  drop.onclick=()=>inp.click();
+  inp.onchange=()=>{addFiles(side,inp.files);inp.value=''};
+  ['dragenter','dragover'].forEach(ev=>drop.addEventListener(ev,e=>{if(e.dataTransfer.types.includes('Files')){e.preventDefault();drop.classList.add('over')}}));
+  drop.addEventListener('dragleave',()=>drop.classList.remove('over'));
+  drop.addEventListener('drop',e=>{e.preventDefault();e.stopPropagation();drop.classList.remove('over');addFiles(side,e.dataTransfer.files)});
+}
+// 컬럼 전체에 파일 드롭도 허용
+document.querySelectorAll('.col').forEach(c=>{
+  c.addEventListener('dragover',e=>{if(e.dataTransfer.types.includes('Files'))e.preventDefault()});
+  c.addEventListener('drop',e=>{if(e.dataTransfer.files.length){e.preventDefault();addFiles(c.dataset.side,e.dataTransfer.files)}});
+});
+document.querySelectorAll('[data-sort]').forEach(b=>b.onclick=()=>{S[b.dataset.sort].sort(natural);render()});
+document.querySelectorAll('[data-rev]').forEach(b=>b.onclick=()=>{S[b.dataset.rev].reverse();render()});
+$('#clear').onclick=()=>{if((S.L.length||S.R.length)&&!confirm('모든 이미지를 비울까요?'))return;S.L=[];S.R=[];render()};
+
+const loadImg=u=>new Promise((res,rej)=>{const i=new Image();i.onload=()=>res(i);i.onerror=rej;i.src=u});
+const FONT='"Apple SD Gothic Neo","Malgun Gothic","Noto Sans KR",sans-serif';
+
+$('#make').onclick=async()=>{
+  const n=Math.max(S.L.length,S.R.length);
+  if(!n){alert('이미지를 먼저 올려주세요.');return}
+  if(!window.jspdf){alert('PDF 라이브러리를 불러오지 못했습니다. 인터넷 연결을 확인해주세요.');return}
+  const btn=$('#make');btn.disabled=true;
+  try{
+    const imgsL=await Promise.all(S.L.map(x=>loadImg(x.url)));
+    const imgsR=await Promise.all(S.R.map(x=>loadImg(x.url)));
+    const all=[...imgsL,...imgsR];
+    const colW=Math.min(1200,Math.max(...all.map(i=>i.naturalWidth)));
+    const GAP=Math.round(colW*0.2),W=Math.round(colW*4.35),M=Math.round((W-colW*2-GAP)/2),PH=Math.round(W*297/210),HEAD=Math.round(colW*0.45),VM=Math.round(colW*0.3);
+    const labL=$('#labL').value,labR=$('#labR').value;
+    const xL=M,xR=M+colW+GAP;
+    // 행(같은 번호끼리) 스트림 구성: 위에서 아래로 쭉 이어붙임
+    const rows=[];let total=0;
+    for(let i=0;i<n;i++){
+      const a=imgsL[i],b=imgsR[i];
+      const hA=a?a.naturalHeight*colW/a.naturalWidth:0,hB=b?b.naturalHeight*colW/b.naturalWidth:0;
+      const h=Math.max(hA,hB);rows.push({a,b,hA,hB,h,y:total});total+=h;
+    }
+    const regionH=p=>PH-(p===0?HEAD:VM)-VM;
+    let pdf=null,pos=0,p=0;
+    while(pos<total-0.5){
+      $('#status').textContent=`생성 중… ${p+1}페이지`;
+      await new Promise(r=>setTimeout(r));
+      const top=p===0?HEAD:VM,avail=regionH(p);
+      const cv=document.createElement('canvas');cv.width=W;cv.height=PH;
+      const c=cv.getContext('2d');
+      c.fillStyle='#fff';c.fillRect(0,0,W,PH);
+      c.imageSmoothingQuality='high';
+      if(p===0){
+        c.textAlign='center';c.textBaseline='middle';c.font=`700 ${Math.round(colW*0.13)}px ${FONT}`;
+        c.fillStyle='#6b7385';c.fillText(labL,xL+colW/2,HEAD/2);
+        c.fillStyle='#e8452c';c.fillText(labR,xR+colW/2,HEAD/2);
+      }
+      const end=Math.min(total,pos+avail);
+      c.fillStyle='#e3e6ec';c.fillRect(M+colW+GAP/2-1,top,2,end-pos);
+      for(const r of rows){
+        const v0=Math.max(pos,r.y),v1=Math.min(end,r.y+r.h);
+        if(v1<=v0)continue;
+        for(const [img,hh,x] of [[r.a,r.hA,xL],[r.b,r.hB,xR]]){
+          if(!img)continue;
+          const i0=v0-r.y,i1=Math.min(v1-r.y,hh);
+          if(i1<=i0)continue;
+          const s=img.naturalHeight/hh;
+          c.drawImage(img,0,i0*s,img.naturalWidth,(i1-i0)*s,x,top+(v0-pos),colW,i1-i0);
+        }
+      }
+      const data=cv.toDataURL('image/jpeg',0.92);
+      if(!pdf)pdf=new jspdf.jsPDF({unit:'mm',format:'a4',orientation:'p',compress:true});
+      else pdf.addPage('a4','p');
+      pdf.addImage(data,'JPEG',0,0,210,297);
+      pos=end;p++;
+    }
+    let name=($('#fname').value.trim()||'제품명_상세수정').replace(/[\\/:*?"<>|]/g,'_').replace(/\.pdf$/i,'');
+    pdf.save(name+'.pdf');
+    $('#status').textContent='완료: '+name+'.pdf';
+  }catch(e){console.error(e);alert('PDF 생성 중 오류: '+e.message);$('#status').textContent=''}
+  btn.disabled=false;
+};
+render();
+</script>
+</body>
+</html>
