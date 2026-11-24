@@ -168,13 +168,14 @@ $('#make').onclick=async()=>{
       const h=Math.max(hA,hB);rows.push({a,b,hA,hB,h,y:total});total+=h;
     }
     const regionH=p=>PH-(p===0?HEAD:VM)-VM;
+    const build=async(k,q,tag)=>{
     let pdf=null,pos=0,p=0;
     while(pos<total-0.5){
-      $('#status').textContent=`생성 중… ${p+1}페이지`;
+      $('#status').textContent=`생성 중… ${p+1}페이지${tag}`;
       await new Promise(r=>setTimeout(r));
       const top=p===0?HEAD:VM,avail=regionH(p);
-      const cv=document.createElement('canvas');cv.width=W;cv.height=PH;
-      const c=cv.getContext('2d');
+      const cv=document.createElement('canvas');cv.width=Math.round(W*k);cv.height=Math.round(PH*k);
+      const c=cv.getContext('2d');c.scale(k,k);
       c.fillStyle='#fff';c.fillRect(0,0,W,PH);
       c.imageSmoothingQuality='high';
       if(p===0){
@@ -195,15 +196,24 @@ $('#make').onclick=async()=>{
           c.drawImage(img,0,i0*s,img.naturalWidth,(i1-i0)*s,x,top+(v0-pos),colW,i1-i0);
         }
       }
-      const data=cv.toDataURL('image/jpeg',0.92);
+      const data=cv.toDataURL('image/jpeg',q);
       if(!pdf)pdf=new jspdf.jsPDF({unit:'mm',format:'a4',orientation:'p',compress:true});
       else pdf.addPage('a4','p');
       pdf.addImage(data,'JPEG',0,0,210,297);
       pos=end;p++;
     }
+    return pdf;};
+    // 10MB 이하가 될 때까지 해상도/화질을 단계적으로 낮춰 다시 생성
+    const LIMIT=10.5*1024*1024,tries=[[1,.92],[1,.85],[.9,.8],[.8,.75],[.65,.7],[.5,.65]];
+    let pdf=null;
+    for(let t=0;t<tries.length;t++){
+      pdf=await build(tries[t][0],tries[t][1],t?` (용량 줄이는 중 ${t}/${tries.length-1})`:'');
+      if(pdf.output('blob').size<=LIMIT)break;
+    }
+    const mb=(pdf.output('blob').size/1048576).toFixed(1);
     let name=($('#fname').value.trim()||'제품명_상세수정').replace(/[\\/:*?"<>|]/g,'_').replace(/\.pdf$/i,'');
     pdf.save(name+'.pdf');
-    $('#status').textContent='완료: '+name+'.pdf';
+    $('#status').textContent='완료: '+name+'.pdf ('+mb+'MB)';
   }catch(e){console.error(e);alert('PDF 생성 중 오류: '+e.message);$('#status').textContent=''}
   btn.disabled=false;
 };
